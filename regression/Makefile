@@ -1,7 +1,7 @@
 OCAMLC = ocamlfind c
 OCAMLOPT = ocamlfind opt
 OCAMLDEP = ocamlfind dep
-SOURCES = common.ml
+SOURCES = common.ml test000.ml
 CAMLP5 = -syntax camlp5o -package ostap.syntax,GT.syntax.all
 PXFLAGS = $(CAMLP5)
 BFLAGS = -rectypes -I ../src
