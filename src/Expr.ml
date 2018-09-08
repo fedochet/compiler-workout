@@ -36,12 +36,12 @@ let update x v s = fun y -> if x = y then v else s y
 let s = update "x" 1 @@ update "y" 2 @@ update "z" 3 @@ update "t" 4 empty
 
 (* Some testing; comment this definition out when submitting the solution. *)
-let _ =
+(* let _ =
   List.iter
     (fun x ->
        try  Printf.printf "%s=%d\n" x @@ s x
        with Failure s -> Printf.printf "%s\n" s
-    ) ["x"; "a"; "y"; "z"; "t"; "b"]
+    ) ["x"; "a"; "y"; "z"; "t"; "b"] *)
 
 (* Expression evaluator
 
@@ -50,5 +50,27 @@ let _ =
    Takes a state and an expression, and returns the value of the expression in 
    the given state.
 *)
-let eval = failwith "Not implemented yet"
-                    
+let intToBool i = if (i == 0) then false else true
+let boolToInt b = if b then 1 else 0
+
+let rec eval s e = 
+  match e with
+    | Const value -> value
+    | Var name -> s name
+    | Binop (op, l, r) -> 
+      let left = eval s l 
+      and right = eval s r in match op with 
+        | "+"   -> left + right
+        | "-"   -> left - right
+        | "*"   -> left * right
+        | "/"   -> left / right
+        | "%"   -> left mod right
+        | "=="  -> boolToInt (left == right)
+        | "!="  -> boolToInt (left != right)
+        | ">"   -> boolToInt (left >  right)
+        | ">="  -> boolToInt (left >= right)
+        | "<"   -> boolToInt (left <  right)
+        | "<="  -> boolToInt (left <= right)
+        | "&&"  -> boolToInt ((intToBool left) && (intToBool right))
+        | "!!"  -> boolToInt ((intToBool left) || (intToBool right))
+        | _     -> failwith ("Unknown operation " ^ op)
