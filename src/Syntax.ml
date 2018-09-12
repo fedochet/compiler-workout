@@ -3,6 +3,10 @@
 *)
 open GT 
     
+let intToBool i = if (i == 0) then false else true
+let boolToInt b = if b then 1 else 0
+
+
 (* Simple expressions: syntax and semantics *)
 module Expr =
   struct
@@ -41,7 +45,27 @@ module Expr =
        Takes a state and an expression, and returns the value of the expression in 
        the given state.
     *)
-    let eval _ = failwith "Not implemented yet"
+    let rec eval s e = 
+      match e with
+        | Const value -> value
+        | Var name -> s name
+        | Binop (op, l, r) -> 
+          let left = eval s l 
+          and right = eval s r in match op with 
+            | "+"   -> left + right
+            | "-"   -> left - right
+            | "*"   -> left * right
+            | "/"   -> left / right
+            | "%"   -> left mod right
+            | "=="  -> boolToInt (left == right)
+            | "!="  -> boolToInt (left != right)
+            | ">"   -> boolToInt (left >  right)
+            | ">="  -> boolToInt (left >= right)
+            | "<"   -> boolToInt (left <  right)
+            | "<="  -> boolToInt (left <= right)
+            | "&&"  -> boolToInt ((intToBool left) && (intToBool right))
+            | "!!"  -> boolToInt ((intToBool left) || (intToBool right))
+            | _     -> failwith ("Unknown operation " ^ op)
 
   end
                     
@@ -65,7 +89,12 @@ module Stmt =
 
        Takes a configuration and a statement, and returns another configuration
     *)
-    let eval _ = failwith "Not implemented yet"
+    let rec eval (state, input, output) s = 
+      match s with
+        | Read name -> ((Expr.update name (List.hd input) state), (List.tl input), output)
+        | Write expr -> (state, input, (Expr.eval state expr)::output)
+        | Assign(name, expr) -> ((Expr.update name (Expr.eval state expr) state), input, output)
+        | Seq(l, r) -> eval (eval (state, input, output) r) l
                                                          
   end
 
