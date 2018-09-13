@@ -24,7 +24,20 @@ type config = int list * Stmt.config
 
    Takes a configuration and a program, and returns a configuration as a result
  *)                         
-let eval _ = failwith "Not yet implemented"
+ let rec oneStep cfg i = 
+  match cfg, i with
+    | (l, (s, i::input, output)), READ -> (i::l, (s, input, output))
+    | _, READ -> failwith "Input is empty, cannot read from it"
+    | (i::l, (s, input, output)), WRITE -> (l, (s, input, i::output))
+    | _, WRITE -> failwith "Stack is empty, cannot write from it"
+    | (l, (s, i, o)), LD name -> ((s name)::l, (s, i, o))
+    | (i::l, (s, input, output)), ST name -> (l, (Expr.update name (i) s, input, output))
+    | _, ST name -> failwith ("Cannot store variable " ^ name ^ ", stack is empty")
+    | (l, cfg), CONST v -> (v::l, cfg)
+    | (right::left::l, cfg), BINOP op -> ((performBinop op left right)::l, cfg)
+    | _, BINOP op -> failwith ("Cannot perform " ^ op ^ "; not enough values on stack")
+    
+let rec eval cfg ins = List.fold_left oneStep cfg ins
 
 (* Top-level evaluation
 
@@ -34,6 +47,12 @@ let eval _ = failwith "Not yet implemented"
 *)
 let run p i = let (_, (_, _, o)) = eval ([], (Language.Expr.empty, i, [])) p in o
 
+let rec compileExpr expr =
+  match expr with 
+    | Expr.Const v -> [CONST v]
+    | Expr.Var name -> [LD name]
+    | Expr.Binop (op, l, r) -> List.concat [compileExpr l; compileExpr r; [BINOP op]]
+
 (* Stack machine compiler
 
      val compile : Language.Stmt.t -> prg
@@ -41,4 +60,9 @@ let run p i = let (_, (_, _, o)) = eval ([], (Language.Expr.empty, i, [])) p in 
    Takes a program in the source language and returns an equivalent program for the
    stack machine
  *)
-let compile _ = failwith "Not yet implemented"
+ let rec compile stmt = 
+  match stmt with 
+    | Stmt.Read name -> [READ; ST name]
+    | Stmt.Write expr -> List.append (compileExpr expr) [WRITE]
+    | Stmt.Assign(name, expr) -> List.append (compileExpr expr) [ST name]
+    | Stmt.Seq(l, r) -> List.append (compile l) (compile r)
