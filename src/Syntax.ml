@@ -2,11 +2,26 @@
    The library provides "@type ..." syntax extension and plugins like show, etc.
 *)
 open GT 
-    
+
 let intToBool i = if (i == 0) then false else true
 let boolToInt b = if b then 1 else 0
 
-
+let performBinop op left right = match op with 
+  | "+"   -> left + right
+  | "-"   -> left - right
+  | "*"   -> left * right
+  | "/"   -> left / right
+  | "%"   -> left mod right
+  | "=="  -> boolToInt (left == right)
+  | "!="  -> boolToInt (left != right)
+  | ">"   -> boolToInt (left >  right)
+  | ">="  -> boolToInt (left >= right)
+  | "<"   -> boolToInt (left <  right)
+  | "<="  -> boolToInt (left <= right)
+  | "&&"  -> boolToInt ((intToBool left) && (intToBool right))
+  | "!!"  -> boolToInt ((intToBool left) || (intToBool right))
+  | _     -> failwith ("Unknown operation " ^ op)
+    
 (* Simple expressions: syntax and semantics *)
 module Expr =
   struct
@@ -49,24 +64,7 @@ module Expr =
       match e with
         | Const value -> value
         | Var name -> s name
-        | Binop (op, l, r) -> 
-          let left = eval s l 
-          and right = eval s r in match op with 
-            | "+"   -> left + right
-            | "-"   -> left - right
-            | "*"   -> left * right
-            | "/"   -> left / right
-            | "%"   -> left mod right
-            | "=="  -> boolToInt (left == right)
-            | "!="  -> boolToInt (left != right)
-            | ">"   -> boolToInt (left >  right)
-            | ">="  -> boolToInt (left >= right)
-            | "<"   -> boolToInt (left <  right)
-            | "<="  -> boolToInt (left <= right)
-            | "&&"  -> boolToInt ((intToBool left) && (intToBool right))
-            | "!!"  -> boolToInt ((intToBool left) || (intToBool right))
-            | _     -> failwith ("Unknown operation " ^ op)
-
+        | Binop (op, l, r) -> performBinop op (eval s l) (eval s r)
   end
                     
 (* Simple statements: syntax and sematics *)
@@ -94,7 +92,7 @@ module Stmt =
         | Read name -> ((Expr.update name (List.hd input) state), (List.tl input), output)
         | Write expr -> (state, input, (Expr.eval state expr)::output)
         | Assign(name, expr) -> ((Expr.update name (Expr.eval state expr) state), input, output)
-        | Seq(l, r) -> eval (eval (state, input, output) r) l
+        | Seq(l, r) -> eval (eval (state, input, output) l) r
                                                          
   end
 
