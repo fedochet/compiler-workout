@@ -1,11 +1,12 @@
 TOPFILE = rc
-OCAMLC = ocamlfind c
-OCAMLOPT = ocamlfind opt
-OCAMLDEP = ocamlfind dep
-SOURCES = Language.ml SM.ml Driver.ml
-CAMLP5 = -syntax camlp5o -package ostap.syntax,GT.syntax.all
+OCAMLC = ocamlc
+OCAMLOPT = ocamlopt
+OCAMLDEP = ocamldep
+SOURCES = Language.ml SM.ml X86.ml Driver.ml
+LIBS = GT.cma unix.cma re.cma emacs/re_emacs.cma str/re_str.cma 
+CAMLP5 = -pp "camlp5o -I `ocamlfind -query GT.syntax` -I `ocamlfind -query ostap.syntax` pa_ostap.cmo pa_gt.cmo -L `ocamlfind -query GT.syntax`"
 PXFLAGS = $(CAMLP5)
-BFLAGS = -rectypes
+BFLAGS = -rectypes -I `ocamlfind -query GT` -I `ocamlfind -query re`  -I `ocamlfind -query ostap` 
 OFLAGS = $(BFLAGS)
 
 all: .depend $(TOPFILE).opt
@@ -14,10 +15,10 @@ all: .depend $(TOPFILE).opt
 	$(OCAMLDEP) $(PXFLAGS) *.ml > .depend
 
 $(TOPFILE).opt: $(SOURCES:.ml=.cmx)
-	$(OCAMLOPT) -o $(TOPFILE).opt $(OFLAGS) $(LIBS:.cma=.cmxa) -linkpkg -package ostap $(SOURCES:.ml=.cmx)
+	$(OCAMLOPT) -o $(TOPFILE).opt $(OFLAGS) $(LIBS:.cma=.cmxa) ostap.cmx $(SOURCES:.ml=.cmx)
 
 $(TOPFILE).byte: $(SOURCES:.ml=.cmo)
-	$(OCAMLC) -o $(TOPFILE).byte $(BFLAGS) $(LIBS) -linkpkg -package ostap $(SOURCES:.ml=.cmo) 
+	$(OCAMLC) -o $(TOPFILE).byte $(BFLAGS) $(LIBS) ostap.cma $(SOURCES:.ml=.cmo) 
 
 clean:
 	rm -Rf *.cmi *.cmo *.cmx *.annot *.o *.opt *.byte *~ .depend
@@ -41,3 +42,4 @@ clean:
 
 %.cmx: %.ml
 	$(OCAMLOPT) -c $(OFLAGS) $(STATIC) $(PXFLAGS) $<
+

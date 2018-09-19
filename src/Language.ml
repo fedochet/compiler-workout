@@ -43,19 +43,19 @@ module Expr =
  
        Takes a state and an expression, and returns the value of the expression in 
        the given state.
-    *)
-    let eval _ = failwith "Not implemented yet"
+     *)                                                       
+    let eval _ _ = failwith "Not yet implemented"
 
     (* Expression parser. You can use the following terminals:
 
          IDENT   --- a non-empty identifier a-zA-Z[a-zA-Z0-9_]* as a string
          DECIMAL --- a decimal constant [0-9]+ as a string
-   
+                                                                                                                  
     *)
-    ostap (
-      parse: empty {failwith "Not implemented yet"}
+    ostap (                                      
+      parse: empty {failwith "Not yet implemented"}
     )
-
+    
   end
                     
 (* Simple statements: syntax and sematics *)
@@ -74,15 +74,15 @@ module Stmt =
 
     (* Statement evaluator
 
-          val eval : config -> t -> config
+         val eval : config -> t -> config
 
        Takes a configuration and a statement, and returns another configuration
     *)
-    let eval _ = failwith "Not implemented yet"
+    let eval _ _ = failwith "Not yet implemented"
 
     (* Statement parser *)
     ostap (
-      parse: empty {failwith "Not implemented yet"}
+      parse: empty {failwith "Not yet implemented"}
     )
       
   end
@@ -100,3 +100,6 @@ type t = Stmt.t
 *)
 let eval p i =
   let _, _, o = Stmt.eval (Expr.empty, i, []) p in o
+
+(* Top-level parser *)
+let parse = Stmt.parse                                                     
