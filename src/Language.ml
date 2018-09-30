@@ -120,7 +120,7 @@ module Stmt =
     let rec eval (state, input, output) s =
       match s with
         | Read name -> ((Expr.update name (List.hd input) state), (List.tl input), output)
-        | Write expr -> (state, input, (Expr.eval state expr)::output)
+        | Write expr -> (state, input, output @ [Expr.eval state expr])
         | Assign(name, expr) -> ((Expr.update name (Expr.eval state expr) state), input, output)
         | Seq(l, r) -> eval (eval (state, input, output) l) r
 

@@ -28,7 +28,7 @@ let rec oneStep cfg i =
   match cfg, i with
     | (l, (s, i::input, output)), READ -> (i::l, (s, input, output))
     | _, READ -> failwith "Input is empty, cannot read from it"
-    | (i::l, (s, input, output)), WRITE -> (l, (s, input, i::output))
+    | (i::l, (s, input, output)), WRITE -> (l, (s, input, output @ [i]))
     | _, WRITE -> failwith "Stack is empty, cannot write from it"
     | (l, (s, i, o)), LD name -> ((s name)::l, (s, i, o))
     | (i::l, (s, input, output)), ST name -> (l, (Expr.update name (i) s, input, output))
