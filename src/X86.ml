@@ -80,7 +80,31 @@ open SM
    Take an environment, a stack machine program, and returns a pair --- the updated environment and the list
    of x86 instructions
 *)
-let compile _ _ = failwith "Not yet implemented"
+let compileBinOp op env = 
+  match op with
+    | "*" -> let x, y, env = env#pop2 in 
+              env, [Binop ("+", x, y)]
+    | _ -> env, []
+
+let rec compile env code = 
+  match code with 
+    | [] -> (env, [])
+    | i::code' -> 
+      let env, xcode = match i with
+        | LD x -> let s, env = (env#global x)#allocate in
+                  env, [Mov (M (env#loc x), s)]
+        | ST x -> let s, env = (env#global x)#pop in 
+                  env, [Mov (s, M (env#loc x))]
+        | READ -> let s, env = env#allocate in
+                  env, [Call "Lread"; Mov (eax, s)]
+        | WRITE -> let s, env = env#pop in 
+                  env, [Push s; Call "Lwrite"; Pop eax]
+        | CONST x -> let s, env = (env#allocate) in
+                  env, [Mov (L x, s)]
+        | BINOP op -> compileBinOp op env 
+      in 
+      let env, xcode' = compile env code' in
+      env, xcode @ xcode'
 
 (* A set of strings *)           
 module S = Set.Make (String)
