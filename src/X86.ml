@@ -81,10 +81,52 @@ open SM
    of x86 instructions
 *)
 let compileBinOp op env = 
+  let isRegister op = 
+    match op with 
+    | R _ -> true 
+    | _ -> false  
+  in
+
+  let cleanRegister r = 
+    Binop ("^", r, r)
+  in
+
+  let comparisonFlag op = 
+    match op with
+    | "<"  -> "l"
+    | "<=" -> "le"
+    | ">"  -> "g"
+    | ">=" -> "ge"
+    | "==" -> "e"
+    | "!=" -> "ne"
+  in
+
+  let y, x, env = env#pop2 in 
+  let _, env = env#allocate in
+      
   match op with
-    | "*" -> let x, y, env = env#pop2 in 
-              env, [Binop ("+", x, y)]
-    | _ -> env, []
+    | "*" | "+" | "-" | "^" ->  
+      if isRegister x
+      then env, [Binop (op, y, x)]
+      else env, [Mov (x, eax); Binop (op, y, eax); Mov (eax, x)]
+    
+    | "/" | "%" -> 
+      let res = if op = "/" then eax else edx in
+      env, [Mov (x, eax); Cltd; IDiv y; Mov (res, x)]
+    
+    | "==" | "!=" | ">"  | ">=" | "<"  | "<=" -> 
+      let flag = comparisonFlag op in
+      let ins = if isRegister x
+      then [cleanRegister edx; Binop ("cmp", y, x); Set (flag, "%dl"); Mov(edx, x)]
+      else [cleanRegister edx; Mov (x, eax); Binop ("cmp", y, eax); Set (flag, "%dl"); Mov(edx, x)]
+      in env, ins
+    
+    | "&&" | "!!" -> env, [
+        cleanRegister eax; cleanRegister edx;
+        Binop ("cmp", L 0, x); Set ("ne", "%al");
+        Binop ("cmp", L 0, y); Set ("ne", "%dl");
+        Binop (op, eax, edx); Mov (edx, x)
+      ]
 
 let rec compile env code = 
   match code with 
@@ -92,7 +134,7 @@ let rec compile env code =
     | i::code' -> 
       let env, xcode = match i with
         | LD x -> let s, env = (env#global x)#allocate in
-                  env, [Mov (M (env#loc x), s)]
+                  env, [Mov (M (env#loc x), eax); Mov (eax, s)]
         | ST x -> let s, env = (env#global x)#pop in 
                   env, [Mov (s, M (env#loc x))]
         | READ -> let s, env = env#allocate in
