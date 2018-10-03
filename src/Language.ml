@@ -43,8 +43,8 @@ module Expr =
  
        Takes a state and an expression, and returns the value of the expression in 
        the given state.
-     *)                                                       
-    let eval _ _ = failwith "Not yet implemented"
+    *)                                                       
+    let eval st expr = failwith "Not yet implemented"
 
     (* Expression parser. You can use the following terminals:
 
@@ -67,8 +67,12 @@ module Stmt =
     (* read into the variable           *) | Read   of string
     (* write the value of an expression *) | Write  of Expr.t
     (* assignment                       *) | Assign of string * Expr.t
-    (* composition                      *) | Seq    of t * t with show
-
+    (* composition                      *) | Seq    of t * t 
+    (* empty statement                  *) | Skip
+    (* conditional                      *) | If     of Expr.t * t * t
+    (* loop with a pre-condition        *) | While  of Expr.t * t
+    (* loop with a post-condition       *) (* add yourself *)  with show
+                                                                    
     (* The type of configuration: a state, an input stream, an output stream *)
     type config = Expr.state * int list * int list 
 
@@ -78,8 +82,8 @@ module Stmt =
 
        Takes a configuration and a statement, and returns another configuration
     *)
-    let eval _ _ = failwith "Not yet implemented"
-
+    let rec eval conf stmt = failwith "Not yet implemented"
+                               
     (* Statement parser *)
     ostap (
       parse: empty {failwith "Not yet implemented"}
