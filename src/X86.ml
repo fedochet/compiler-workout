@@ -43,7 +43,7 @@ type instr =
 (* a label in the code                                  *) | Label of string
 (* a conditional jump                                   *) | CJmp  of string * string
 (* a non-conditional jump                               *) | Jmp   of string
-
+                                                               
 (* Instruction printer *)
 let show instr =
   let binop = function
@@ -86,7 +86,7 @@ open SM
    Take an environment, a stack machine program, and returns a pair --- the updated environment and the list
    of x86 instructions
 *)
-let compile env code = failwith "Not yet implemented"
+let compile _ = failwith "Not Implemented Yet"
 
 (* A set of strings *)           
 module S = Set.Make (String)
