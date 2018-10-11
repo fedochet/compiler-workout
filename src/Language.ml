@@ -135,7 +135,7 @@ module Stmt =
           eval (state, input, output) toEval
         | Repeat(b, c) -> 
           let (state, input, output) as config = eval (state, input, output) b in
-          let toEval = if intToBool (Expr.eval state c) then Repeat(b, c) else Skip in
+          let toEval = if intToBool (Expr.eval state c) then Skip else Repeat(b, c) in
           eval config toEval
 
     (* Statement parser *)
@@ -143,6 +143,7 @@ module Stmt =
       assign: x:IDENT ":=" e:!(Expr.expr) { Assign (x, e) } ;
       read: "read" "(" x:IDENT ")" { Read x } ;
       write: "write" "(" e:!(Expr.expr) ")" { Write e } ;
+      skip: "skip" { Skip };
       
       elseBlock: 
         "elif" e:!(Expr.expr) "then" b:parse next:elseBlock { If(e, b, next) }
@@ -158,12 +159,16 @@ module Stmt =
 
       repeatBlock:
         "repeat" b:parse "until" e:!(Expr.expr) { Repeat (b, e) }; 
+
+      forBlock: 
+        "for " init:simple_stmt "," cond:!(Expr.expr) "," upd:simple_stmt "do" b:parse "od" { Seq(init, While(cond, Seq(b, upd))) };
         
-      simple_stmt: assign | read | write | ifBlock | whileBlock | repeatBlock;
+      simple_stmt: assign | read | write | skip ;
+      stmt: simple_stmt | ifBlock | whileBlock | repeatBlock | forBlock;
       parse: <s::ss> :
         !(Util.listBy)
         [ostap (";")]
-        [simple_stmt]
+        [stmt]
         { List.fold_left (fun s ss -> Seq (s, ss)) s ss}
     )
       

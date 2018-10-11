@@ -28,20 +28,28 @@ type config = int list * Stmt.config
    Takes an environment, a configuration and a program, and returns a configuration as a result. The
    environment is used to locate a label to jump to (via method env#labeled <label_name>)
 *)                         
-let rec oneStep cfg i =
-  match cfg, i with
-    | (l, (s, i::input, output)), READ -> (i::l, (s, input, output))
-    | _, READ -> failwith "Input is empty, cannot read from it"
-    | (i::l, (s, input, output)), WRITE -> (l, (s, input, output @ [i]))
-    | _, WRITE -> failwith "Stack is empty, cannot write from it"
-    | (l, (s, i, o)), LD name -> ((s name)::l, (s, i, o))
-    | (i::l, (s, input, output)), ST name -> (l, (Expr.update name (i) s, input, output))
-    | _, ST name -> failwith ("Cannot store variable " ^ name ^ ", stack is empty")
-    | (l, cfg), CONST v -> (v::l, cfg)
-    | (right::left::l, cfg), BINOP op -> ((performBinop op left right)::l, cfg)
-    | _, BINOP op -> failwith ("Cannot perform " ^ op ^ "; not enough values on stack")
+let rec eval env cfg ins =
+  let rec eval' cfg ins = match cfg, ins with
+    | _, [] -> cfg
+    | (l, (s, i::input, output)), READ::ins -> eval' (i::l, (s, input, output)) ins
+    | _, READ::_ -> failwith "Input is empty, cannot read from it"
+    | (i::l, (s, input, output)), WRITE::ins -> eval' (l, (s, input, output @ [i])) ins
+    | _, WRITE::_ -> failwith "Stack is empty, cannot write from it"
+    | (l, (s, i, o)), (LD name)::ins -> eval' ((s name)::l, (s, i, o)) ins
+    | (i::l, (s, input, output)), (ST name)::ins -> eval' (l, (Expr.update name (i) s, input, output)) ins
+    | _, (ST name)::_ -> failwith ("Cannot store variable " ^ name ^ ", stack is empty")
+    | (l, cfg), (CONST v)::ins -> eval' (v::l, cfg) ins
+    | (right::left::l, cfg), (BINOP op)::ins -> eval' ((performBinop op left right)::l, cfg) ins
+    | _, (BINOP op)::ins -> failwith ("Cannot perform " ^ op ^ "; not enough values on stack")
+    | cfg, (LABEL name)::ins -> eval' cfg ins
+    | cfg, (JMP name)::ins -> eval' cfg (env#labeled name)
+    | (c::l, (s, input, output)), (CJMP (cond, name))::ins -> 
+      let op = match cond with "z" -> (=) | "nz" -> (<>) | _ -> failwith ("Unknown condition " ^ cond) in
+      let nextIns = if (op c 0) then (env#labeled name) else ins in
+      eval' cfg nextIns
+    | _, (CJMP (cond, name))::_ -> failwith ("Cannot perform " ^ cond ^ " conditional jump; no condition value on stack")
+  in eval' cfg ins
 
-let rec eval env cfg ins = List.fold_left oneStep cfg ins
 
 (* Top-level evaluation
 
@@ -66,4 +74,48 @@ let run p i =
    Takes a program in the source language and returns an equivalent program for the
    stack machine
 *)
-let compile p = failwith "Not yet implemented"
+class labelGenerator =
+ object (self)
+   val counter = ref 0
+   method nextLabel = let current = !counter in
+     incr counter; Printf.sprintf "L%d" current
+ end
+
+let generator = new labelGenerator
+let rec compile =
+  let rec expr = function
+  | Expr.Var   x          -> [LD x]
+  | Expr.Const n          -> [CONST n]
+  | Expr.Binop (op, x, y) -> expr x @ expr y @ [BINOP op]
+  in
+  function
+  | Stmt.Seq (s1, s2)  -> compile s1 @ compile s2
+  | Stmt.Read x        -> [READ; ST x]
+  | Stmt.Write e       -> expr e @ [WRITE]
+  | Stmt.Assign (x, e) -> expr e @ [ST x]
+  | Stmt.Skip          -> []
+  | Stmt.If (c, t, e)  -> 
+    let elseL = generator#nextLabel in 
+    let exitL = generator#nextLabel in
+    expr c 
+    @ [CJMP ("z", elseL) ] 
+    @ compile t 
+    @ [JMP exitL; LABEL elseL]
+    @ compile e
+    @ [LABEL exitL]
+  | Stmt.While (c, b) -> 
+    let startL = generator#nextLabel in
+    let exitL = generator#nextLabel in 
+    [LABEL startL]
+    @ expr c
+    @ [CJMP ("z", exitL)]
+    @ compile b
+    @ [JMP startL; LABEL exitL]
+  | Stmt.Repeat (b, c) -> 
+    let startL = generator#nextLabel in
+    [LABEL startL]
+    @ compile b
+    @ expr c
+    @ [CJMP ("z", startL)]
+
+  

@@ -150,6 +150,10 @@ let rec compile env code =
         | CONST x -> let s, env = (env#allocate) in
                   env, [Mov (L x, s)]
         | BINOP op -> compileBinOp op env 
+        | LABEL name -> env, [Label name]
+        | JMP name -> env, [Jmp name]
+        | CJMP (cond, name) -> let s, env = env#pop in 
+          env, [Binop ("cmp", L 0, s); CJmp (cond, name)]
       in 
       let env, xcode' = compile env code' in
       env, xcode @ xcode'
