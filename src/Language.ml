@@ -3,7 +3,7 @@
 *)
 open GT
 open Ostap
-let intToBool i = if (i == 0) then false else true
+let intToBool i = if (i = 0) then false else true
 let boolToInt b = if b then 1 else 0
 let performBinop op left right = match op with
   | "+"   -> left + right
@@ -127,6 +127,16 @@ module Stmt =
         | Write expr -> (state, input, output @ [Expr.eval state expr])
         | Assign(name, expr) -> ((Expr.update name (Expr.eval state expr) state), input, output)
         | Seq(l, r) -> eval (eval (state, input, output) l) r
+        | Skip -> (state, input, output) 
+        | If(c, t, e) -> let branch = if intToBool (Expr.eval state c) then t else e
+          in eval (state, input, output) branch
+        | While(c, b) -> 
+          let toEval = if intToBool (Expr.eval state c) then Seq(b, While(c, b)) else Skip in 
+          eval (state, input, output) toEval
+        | Repeat(b, c) -> 
+          let (state, input, output) as config = eval (state, input, output) b in
+          let toEval = if intToBool (Expr.eval state c) then Repeat(b, c) else Skip in
+          eval config toEval
 
     (* Statement parser *)
     ostap (
