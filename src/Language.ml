@@ -110,7 +110,7 @@ module Stmt =
     (* empty statement                  *) | Skip
     (* conditional                      *) | If     of Expr.t * t * t
     (* loop with a pre-condition        *) | While  of Expr.t * t
-    (* loop with a post-condition       *) (* add yourself *)  with show
+    (* loop with a post-condition       *) | Repeat of t * Expr.t  with show
                                                                     
     (* The type of configuration: a state, an input stream, an output stream *)
     type config = Expr.state * int list * int list 
@@ -133,7 +133,23 @@ module Stmt =
       assign: x:IDENT ":=" e:!(Expr.expr) { Assign (x, e) } ;
       read: "read" "(" x:IDENT ")" { Read x } ;
       write: "write" "(" e:!(Expr.expr) ")" { Write e } ;
-      simple_stmt: assign | read | write;
+      
+      elseBlock: 
+        "elif" e:!(Expr.expr) "then" b:parse next:elseBlock { If(e, b, next) }
+      | "else" b:parse { b }
+      | "elif" e:!(Expr.expr) "then" b:parse { If (e, b, Skip) };
+      
+      ifBlock: 
+        "if" e:!(Expr.expr) "then" b:parse el:elseBlock "fi" { If (e, b, el) }
+      | "if" e:!(Expr.expr) "then" b:parse "fi" { If (e, b, Skip )} ;
+
+      whileBlock: 
+        "while" e:!(Expr.expr) b:parse "od" { While (e, b) };
+
+      repeatBlock:
+        "repeat" b:parse "until" e:!(Expr.expr) { Repeat (b, e) }; 
+        
+      simple_stmt: assign | read | write | ifBlock | whileBlock | repeatBlock;
       parse: <s::ss> :
         !(Util.listBy)
         [ostap (";")]
