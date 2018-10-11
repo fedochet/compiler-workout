@@ -4,5 +4,5 @@
 *.o
 *.opt
 *.log
-!*/orig
+!**/orig/*.log
 *.s
