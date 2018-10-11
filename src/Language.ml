@@ -154,7 +154,7 @@ module Stmt =
       | "if" e:!(Expr.expr) "then" b:parse "fi" { If (e, b, Skip )} ;
 
       whileBlock: 
-        "while" e:!(Expr.expr) b:parse "od" { While (e, b) };
+        "while" e:!(Expr.expr) "do" b:parse "od" { While (e, b) };
 
       repeatBlock:
         "repeat" b:parse "until" e:!(Expr.expr) { Repeat (b, e) }; 
