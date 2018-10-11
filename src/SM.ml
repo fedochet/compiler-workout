@@ -28,7 +28,20 @@ type config = int list * Stmt.config
    Takes an environment, a configuration and a program, and returns a configuration as a result. The
    environment is used to locate a label to jump to (via method env#labeled <label_name>)
 *)                         
-let rec eval env conf prog = failwith "Not yet implemented"
+let rec oneStep cfg i =
+  match cfg, i with
+    | (l, (s, i::input, output)), READ -> (i::l, (s, input, output))
+    | _, READ -> failwith "Input is empty, cannot read from it"
+    | (i::l, (s, input, output)), WRITE -> (l, (s, input, output @ [i]))
+    | _, WRITE -> failwith "Stack is empty, cannot write from it"
+    | (l, (s, i, o)), LD name -> ((s name)::l, (s, i, o))
+    | (i::l, (s, input, output)), ST name -> (l, (Expr.update name (i) s, input, output))
+    | _, ST name -> failwith ("Cannot store variable " ^ name ^ ", stack is empty")
+    | (l, cfg), CONST v -> (v::l, cfg)
+    | (right::left::l, cfg), BINOP op -> ((performBinop op left right)::l, cfg)
+    | _, BINOP op -> failwith ("Cannot perform " ^ op ^ "; not enough values on stack")
+
+let rec eval env cfg ins = List.fold_left oneStep cfg ins
 
 (* Top-level evaluation
 
