@@ -169,7 +169,13 @@ module Stmt =
         | Repeat(b, c) -> 
           let (state, input, output) as config = eval env (state, input, output) b in
           let toEval = if intToBool (Expr.eval state c) then Skip else Repeat(b, c) in
-          eval env config toEval                                
+          eval env config toEval
+        | Call (name, args) -> 
+          let (params, locals, body) = env#definition name in 
+          let state' = State.push_scope state (params @ locals) in 
+          let state'' = List.fold_left2 (fun s n v -> State.update n (Expr.eval state v) s) state' params args in 
+          let (state''', input', output') = eval env (state'', input, output) body in 
+          (State.drop_scope state''' state, input', output')
 
           (* Statement parser *)
     ostap (
@@ -195,8 +201,11 @@ module Stmt =
 
       forBlock: 
         "for " init:simple_stmt "," cond:!(Expr.parse) "," upd:simple_stmt "do" b:parse "od" { Seq(init, While(cond, Seq(b, upd))) };
+
+      call: 
+        fn:IDENT "(" args:(!(Util.list0By) [ostap (",")] [Expr.parse]) ")" { Call (fn, args)};
         
-      simple_stmt: assign | read | write | skip ;
+      simple_stmt: assign | read | write | skip | call;
       stmt: simple_stmt | ifBlock | whileBlock | repeatBlock | forBlock;
       parse: <s::ss> :
         !(Util.listBy)
@@ -214,8 +223,10 @@ module Definition =
     (* The type for a definition: name, argument list, local variables, body *)
     type t = string * (string list * string list * Stmt.t)
 
-    ostap (                                      
-      parse: empty {failwith "Not yet implemented"}
+    ostap (     
+      locals: l:!(ostap("local" names:(!(Util.listBy) [ostap (",")] [ostap(IDENT)]) { names }))? { match l with | Some names -> names | None -> []};
+      func: "fun" name:IDENT "(" args:(!(Util.list0By) [ostap (",")] [ostap(IDENT)]) ")" locals:locals "{" body:!(Stmt.parse) "}" { (name, (args, locals, body)) };
+      parse: func
     )
 
   end
