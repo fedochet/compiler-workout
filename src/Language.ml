@@ -2,9 +2,13 @@
    The library provides "@type ..." syntax extension and plugins like show, etc.
 *)
 open GT
+let intToBool i = if (i = 0) then false else true
+let boolToInt b = if b then 1 else 0
+
 
 (* Opening a library for combinator-based syntax analysis *)
 open Ostap.Combinators
+open Ostap
 
 (* States *)
 module State =
@@ -150,11 +154,55 @@ module Stmt =
 
        which returns a list of formal parameters and a body for given definition
     *)
-    let rec eval _ = failwith "Not Implemented Yet"
-                                
-    (* Statement parser *)
-    ostap (                                      
-      parse: empty {failwith "Not yet implemented"}
+    let rec eval env (state, input, output) s =
+      match s with
+        | Read name -> ((State.update name (List.hd input) state), (List.tl input), output)
+        | Write expr -> (state, input, output @ [Expr.eval state expr])
+        | Assign(name, expr) -> ((State.update name (Expr.eval state expr) state), input, output)
+        | Seq(l, r) -> eval env (eval env (state, input, output) l) r
+        | Skip -> (state, input, output) 
+        | If(c, t, e) -> let branch = if intToBool (Expr.eval state c) then t else e
+          in eval env (state, input, output) branch
+        | While(c, b) -> 
+          let toEval = if intToBool (Expr.eval state c) then Seq(b, While(c, b)) else Skip in 
+          eval env (state, input, output) toEval
+        | Repeat(b, c) -> 
+          let (state, input, output) as config = eval env (state, input, output) b in
+          let toEval = if intToBool (Expr.eval state c) then Skip else Repeat(b, c) in
+          eval env config toEval                                
+
+          (* Statement parser *)
+    ostap (
+      assign: x:IDENT ":=" e:!(Expr.parse) { Assign (x, e) } ;
+      read: "read" "(" x:IDENT ")" { Read x } ;
+      write: "write" "(" e:!(Expr.parse) ")" { Write e } ;
+      skip: "skip" { Skip };
+      
+      elseBlock: 
+        "elif" e:!(Expr.parse) "then" b:parse next:elseBlock { If(e, b, next) }
+      | "else" b:parse { b }
+      | "elif" e:!(Expr.parse) "then" b:parse { If (e, b, Skip) };
+      
+      ifBlock: 
+        "if" e:!(Expr.parse) "then" b:parse el:elseBlock "fi" { If (e, b, el) }
+      | "if" e:!(Expr.parse) "then" b:parse "fi" { If (e, b, Skip )} ;
+
+      whileBlock: 
+        "while" e:!(Expr.parse) "do" b:parse "od" { While (e, b) };
+
+      repeatBlock:
+        "repeat" b:parse "until" e:!(Expr.parse) { Repeat (b, e) }; 
+
+      forBlock: 
+        "for " init:simple_stmt "," cond:!(Expr.parse) "," upd:simple_stmt "do" b:parse "od" { Seq(init, While(cond, Seq(b, upd))) };
+        
+      simple_stmt: assign | read | write | skip ;
+      stmt: simple_stmt | ifBlock | whileBlock | repeatBlock | forBlock;
+      parse: <s::ss> :
+        !(Util.listBy)
+        [ostap (";")]
+        [stmt]
+        { List.fold_left (fun s ss -> Seq (s, ss)) s ss}
     )
       
   end
