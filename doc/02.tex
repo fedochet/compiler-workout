@@ -105,7 +105,6 @@ language=ocaml
 \title{Statements, Stack Machine, Stack Machine Compiler\\
   (the first draft)
 }
-\date{\vspace{-5ex}}
 
 \author{Dmitry Boulytchev}
 
@@ -244,7 +243,7 @@ $\sembr{\bullet}^{\mathscr E}_{comp}$:
 \begin{array}{rcl}
   \sembr{x}^{\mathscr E}_{comp}&=&\llang{[LD $\;x$]}\\
   \sembr{n}^{\mathscr E}_{comp}&=&\llang{[CONST $\;n$]}\\
-  \sembr{A\otimes B}^{\mathscr E}_{comp}&=&\sembr{A}^{\mathscr E}_{comp}\llang{@}\sembr{B}^{\mathscr E}_{comp}\llang{@}[\llang{BINOP $\;\otimes$}]
+  \sembr{A\otimes B}^{\mathscr E}_{comp}&=&\sembr{A}^{\mathscr E}_{comp}\llang{@}\sembr{B}^{\mathscr E}_{comp}\llang{@}(\llang{BINOP $\;\otimes$})
 \end{array}
 \]
 
@@ -260,8 +259,3 @@ And now the main dish:
 \]
 
 \end{document}
-
-%%% Local Variables:
-%%% mode: xelatex
-%%% TeX-master: t
-%%% End:
