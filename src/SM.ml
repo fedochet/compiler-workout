@@ -31,7 +31,7 @@ type config = (prg * State.t) list * int list * Expr.config
    Takes an environment, a configuration and a program, and returns a configuration as a result. The
    environment is used to locate a label to jump to (via method env#labeled <label_name>)
 *)                                                  
-let rec eval env ((cstack, stack, ((st, i, o) as c)) as conf) prg = failwith "Not implemented"
+let rec eval env ((cstack, stack, ((st, i, o, r) as c)) as conf) prg = failwith "Not implemented"
 
 (* Top-level evaluation
 
@@ -48,7 +48,7 @@ let run p i =
   | _ :: tl         -> make_map m tl
   in
   let m = make_map M.empty p in
-  let (_, _, (_, _, o)) = eval (object method labeled l = M.find l m end) ([], [], (State.empty, i, [])) p in o
+  let (_, _, (_, _, o, _)) = eval (object method labeled l = M.find l m end) ([], [], (State.empty, i, [], None)) p in o
 
 (* Stack machine compiler
 
