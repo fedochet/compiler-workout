@@ -1,4 +1,5 @@
 open Ostap
+open GT
 
 let parse infile =
   let s = Util.read infile in
@@ -42,7 +43,10 @@ let main =
 	let output = 
 	  if interpret 
 	  then Language.eval prog input 
-	  else SM.run (SM.compile prog) input
+    else begin 
+      (* List.iter (fun i -> Printf.printf ("%s\n") (GT.transform(SM.insn) (new @SM.insn[show]) () i)) (SM.compile prog) ;  *)
+      SM.run (SM.compile prog) input 
+    end
 	in
 	List.iter (fun i -> Printf.printf "%d\n" i) output
     | `Fail er -> Printf.eprintf "Syntax error: %s\n" er
