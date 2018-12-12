@@ -90,8 +90,114 @@ open SM
    Take an environment, a stack machine program, and returns a pair --- the updated environment and the list
    of x86 instructions
 *)
-let compile env code = failwith "Not implemented"
-                                
+let compileBinOp op env = 
+  let isRegister op = 
+    match op with 
+    | R _ -> true 
+    | _ -> false  
+  in
+
+  let cleanRegister r = 
+    Binop ("^", r, r)
+  in
+
+  let comparisonFlag op = 
+    match op with
+    | "<"  -> "l"
+    | "<=" -> "le"
+    | ">"  -> "g"
+    | ">=" -> "ge"
+    | "==" -> "e"
+    | "!=" -> "ne"
+  in
+
+  let y, x, env = env#pop2 in 
+  let _, env = env#allocate in
+      
+  match op with
+    | "*" | "+" | "-" | "^" ->  
+      if isRegister x
+      then env, [Binop (op, y, x)]
+      else env, [Mov (x, eax); Binop (op, y, eax); Mov (eax, x)]
+    
+    | "/" | "%" -> 
+      let res = if op = "/" then eax else edx in
+      env, [Mov (x, eax); Cltd; IDiv y; Mov (res, x)]
+    
+    | "==" | "!=" | ">"  | ">=" | "<"  | "<=" -> 
+      let flag = comparisonFlag op in
+      let ins = if isRegister x
+      then [cleanRegister edx; Binop ("cmp", y, x); Set (flag, "%dl"); Mov(edx, x)]
+      else [cleanRegister edx; Mov (x, eax); Binop ("cmp", y, eax); Set (flag, "%dl"); Mov(edx, x)]
+      in env, ins
+    
+    | "&&" | "!!" -> env, [
+        cleanRegister eax; cleanRegister edx;
+        Binop ("cmp", L 0, x); Set ("ne", "%al");
+        Binop ("cmp", L 0, y); Set ("ne", "%dl");
+        Binop (op, eax, edx); Mov (edx, x)
+      ]
+
+let rec compile env code = 
+  match code with 
+    | [] -> (env, [])
+    | i::code' -> 
+      let env, xcode = match i with
+        | LD x -> let s, env = (env#global x)#allocate in
+                  env, [Mov ((env#loc x), eax); Mov (eax, s)]
+        | ST x -> let s, env = (env#global x)#pop in 
+                  env, [Mov (s, (env#loc x))]
+        | READ -> let s, env = env#allocate in
+                  env, [Call "Lread"; Mov (eax, s)]
+        | WRITE -> let s, env = env#pop in 
+                  env, [Push s; Call "Lwrite"; Pop eax]
+        | CONST x -> let s, env = (env#allocate) in
+                  env, [Mov (L x, s)]
+        | BINOP op -> compileBinOp op env 
+        | LABEL name -> env, [Label name]
+        | JMP name -> env, [Jmp name]
+        | CJMP (cond, name) -> let s, env = env#pop in 
+          env, [Binop ("cmp", L 0, s); CJmp (cond, name)]
+        
+        | BEGIN (f, arg, l) ->
+          let env = env#enter f arg l in 
+          env, [Push ebp;
+                Mov (esp, ebp);
+                Binop ("-", M ("$" ^ env#lsize), esp)  
+               ]
+        
+        | END ->
+            env, [Label env#epilogue;
+                  Mov (ebp, esp);
+                  Pop ebp;
+                  Ret;
+                  Meta (Printf.sprintf "\t.set %s, %d" env#lsize (env#allocated * word_size))
+                 ]
+        
+        | CALL (f, n, p) ->
+          let pushr, popr = List.split @@ List.map (fun x -> (Push x, Pop x)) env#live_registers in
+          let env, code = 
+            if n = 0 
+            then env, pushr @ [Call f] @ List.rev popr
+            else 
+              let rec push_args env acc = function
+              | 0 -> env, acc
+              | n -> let x, env = env#pop in push_args env ((Push x)::acc) (n - 1)
+            in 
+            let env, pushs = push_args env [] n in
+            env, pushr @ pushs @ [Call f; Binop ("+", L (n * word_size), esp)] @ List.rev popr
+          in 
+          (if p then env, code else let y, env = env#allocate in env, code @ [Mov (eax, y)])
+        | RET true -> 
+          let a, env = env#pop in 
+          env, [Mov (a, eax); Jmp env#epilogue]
+        
+        | RET false -> 
+          env, [Jmp env#epilogue]
+      in 
+      let env, xcode' = compile env code' in
+      env, xcode @ xcode'
+                                    
 (* A set of strings *)           
 module S = Set.Make (String)
 
