@@ -202,8 +202,8 @@ let rec compile env code =
 module S = Set.Make (String)
 
 let rec list_init n f = match n with
-  | 0 -> [f 0]
-  | n -> (list_init (n - 1) f) @ [f n]
+  | 0 -> []
+  | n -> (list_init (n - 1) f) @ [f (n - 1)]
 
 (* Environment implementation *)
 let make_assoc l = List.combine l (list_init (List.length l) (fun x -> x))
